@@ -102,7 +102,7 @@ class RoomController:
 
     # ===== GERENCIAMENTO DE AULAS =====
 
-    def create_class(self, room_id: int, teacher_id: int, date: str,
+    def create_class(self, room_id: int, teacher_id: int, day_of_week: str,
                     start_time: str, end_time: str, subject: str = "") -> Tuple[bool, str]:
         """
         Cria uma nova aula em uma sala
@@ -110,7 +110,7 @@ class RoomController:
         Args:
             room_id: ID da sala
             teacher_id: ID do professor
-            date: Data da aula (DD/MM/YYYY)
+            day_of_week: Dia da semana (Segunda, Terça, Quarta, Quinta, Sexta, Sábado)
             start_time: Horário de início (HH:MM)
             end_time: Horário de término (HH:MM)
             subject: Matéria/assunto opcional
@@ -129,20 +129,23 @@ class RoomController:
             if not teacher:
                 return False, "Professor não encontrado!"
 
-            # Validar e converter formato de data brasileiro (DD/MM/YYYY) para ISO (YYYY-MM-DD)
+            # Validar dia da semana
+            valid_days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+            if day_of_week not in valid_days:
+                return False, "Dia da semana inválido!"
+
+            # Validar formato de horários
             try:
-                date_obj = datetime.strptime(date, '%d/%m/%Y')
-                date_iso = date_obj.strftime('%Y-%m-%d')
                 datetime.strptime(start_time, '%H:%M')
                 datetime.strptime(end_time, '%H:%M')
             except ValueError:
-                return False, "Formato de data ou hora inválido! Use DD/MM/YYYY para data e HH:MM para hora."
+                return False, "Formato de hora inválido! Use HH:MM."
 
             # Adicionar aula ao banco de dados
             class_id = self.db.add_class(
                 room_id=room_id,
                 teacher_id=teacher_id,
-                date=date_iso,
+                day_of_week=day_of_week,
                 start_time=start_time,
                 end_time=end_time,
                 subject=subject
@@ -154,31 +157,12 @@ class RoomController:
             return False, f"Erro ao criar aula: {str(e)}"
 
     def get_classes_by_room(self, room_id: int) -> List[Dict]:
-        """Retorna todas as aulas de uma sala com datas formatadas no padrão brasileiro"""
-        classes = self.db.get_classes_by_room(room_id)
-
-        # Converter datas de ISO para formato brasileiro
-        for cls in classes:
-            try:
-                date_obj = datetime.strptime(cls['date'], '%Y-%m-%d')
-                cls['date_br'] = date_obj.strftime('%d/%m/%Y')
-            except:
-                cls['date_br'] = cls['date']
-
-        return classes
+        """Retorna todas as aulas de uma sala"""
+        return self.db.get_classes_by_room(room_id)
 
     def get_all_classes(self) -> List[Dict]:
-        """Retorna todas as aulas com datas formatadas"""
-        classes = self.db.get_all_classes()
-
-        for cls in classes:
-            try:
-                date_obj = datetime.strptime(cls['date'], '%Y-%m-%d')
-                cls['date_br'] = date_obj.strftime('%d/%m/%Y')
-            except:
-                cls['date_br'] = cls['date']
-
-        return classes
+        """Retorna todas as aulas"""
+        return self.db.get_all_classes()
 
     def delete_class(self, class_id: int) -> bool:
         """Remove uma aula do sistema"""
@@ -274,11 +258,22 @@ class RoomController:
         classes = self.db.get_classes_by_room(room_id)
 
         now = datetime.now()
-        today = now.date().isoformat()
+
+        # Mapear dia da semana atual
+        weekday_map = {
+            0: "Segunda",
+            1: "Terça",
+            2: "Quarta",
+            3: "Quinta",
+            4: "Sexta",
+            5: "Sábado",
+            6: "Domingo"
+        }
+        current_day = weekday_map[now.weekday()]
 
         for cls in classes:
-            # Verificar se é hoje
-            if cls['date'] == today:
+            # Verificar se é o dia da semana correto
+            if cls['day_of_week'] == current_day:
                 # Verificar se está no horário permitido (10min antes até fim)
                 try:
                     start_time = datetime.strptime(cls['start_time'], '%H:%M').time()

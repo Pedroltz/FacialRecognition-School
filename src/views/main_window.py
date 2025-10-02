@@ -1,7 +1,8 @@
 import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GdkPixbuf, GLib, Gdk
-import cv2  # Para captura de vídeo
+import cv2
+
 
 class MainWindow(Gtk.ApplicationWindow):
     def __init__(self, app, controller):
@@ -84,19 +85,29 @@ class MainWindow(Gtk.ApplicationWindow):
         self.monitor_box.set_visible(False)
         main_box.append(self.monitor_box)
 
-        # Container horizontal: Vídeo + Informações
+        # Container horizontal: Vídeo + Informações (responsivo)
         content_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
-        content_box.set_halign(Gtk.Align.CENTER)
+        content_box.set_halign(Gtk.Align.FILL)
+        content_box.set_hexpand(True)
         self.monitor_box.append(content_box)
 
-        # Área de vídeo
-        self.video_frame = Gtk.Picture()
-        self.video_frame.set_size_request(640, 480)
-        content_box.append(self.video_frame)
+        # Container do vídeo (expansível)
+        video_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        video_container.set_hexpand(True)
+        video_container.set_vexpand(True)
+        content_box.append(video_container)
 
-        # Container de informações ao lado do vídeo
+        # Área de vídeo (responsiva)
+        self.video_frame = Gtk.Picture()
+        self.video_frame.set_content_fit(Gtk.ContentFit.CONTAIN)
+        self.video_frame.set_hexpand(True)
+        self.video_frame.set_vexpand(True)
+        video_container.append(self.video_frame)
+
+        # Container de informações ao lado do vídeo (responsivo)
         info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         info_box.set_size_request(300, -1)
+        info_box.set_hexpand(False)
         content_box.append(info_box)
 
         # Título das informações
@@ -105,10 +116,11 @@ class MainWindow(Gtk.ApplicationWindow):
         info_title.set_halign(Gtk.Align.START)
         info_box.append(info_title)
 
-        # Label de informações da aula (com scroll)
+        # Label de informações da aula (com scroll - expansível)
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.set_size_request(300, 350)
+        scrolled.set_vexpand(True)
+        scrolled.set_size_request(300, 200)
         info_box.append(scrolled)
 
         self.class_info_label = Gtk.Label(label="")
@@ -191,23 +203,22 @@ class MainWindow(Gtk.ApplicationWindow):
             self.class_info_label.set_text("Nenhuma aula agendada.")
             return
 
-        info_text = ""
-        for cls in classes:
-            from datetime import datetime
-            try:
-                date_obj = datetime.strptime(cls['date'], '%Y-%m-%d')
-                date_br = date_obj.strftime('%d/%m/%Y')
-            except:
-                date_br = cls['date']
-
-            info_text += f"{date_br}\n"
-            info_text += f"{cls['start_time']} - {cls['end_time']}\n"
-            info_text += f"Professor: {cls['teacher_name']}\n"
-            if cls.get('subject'):
-                info_text += f"Disciplina: {cls['subject']}\n"
-            info_text += "\n"
-
+        info_text = "\n".join(self._format_class_info(cls) for cls in classes)
         self.class_info_label.set_text(info_text.strip())
+
+    def _format_class_info(self, cls):
+        """Formata informações de uma aula"""
+        lines = [
+            cls['day_of_week'],
+            f"{cls['start_time']} - {cls['end_time']}",
+            f"Professor: {cls['teacher_name']}"
+        ]
+
+        if cls.get('subject'):
+            lines.append(f"Disciplina: {cls['subject']}")
+
+        lines.append("")  # Linha em branco
+        return "\n".join(lines)
 
     def init_camera(self):
         """Inicializa a câmera"""
@@ -285,28 +296,31 @@ class MainWindow(Gtk.ApplicationWindow):
         )
 
         if success:
-            # Construir mensagem de sucesso
-            result_text = f"Professor: {teacher_data['name']}\n"
-            result_text += f"Email: {teacher_data['email']}\n"
-            result_text += f"Telefone: {teacher_data['phone']}\n"
-
-            if class_data:
-                from datetime import datetime
-                try:
-                    date_obj = datetime.strptime(class_data['date'], '%Y-%m-%d')
-                    date_br = date_obj.strftime('%d/%m/%Y')
-                except:
-                    date_br = class_data['date']
-
-                result_text += f"\nAula Agendada:\n"
-                result_text += f"Data: {date_br}\n"
-                result_text += f"Horário: {class_data['start_time']} - {class_data['end_time']}\n"
-                if class_data.get('subject'):
-                    result_text += f"Disciplina: {class_data['subject']}"
-
+            result_text = self._build_auth_success_message(teacher_data, class_data)
             self.show_success_dialog("Acesso Autorizado!", result_text)
         else:
             self.show_error_dialog(message)
+
+    def _build_auth_success_message(self, teacher_data, class_data):
+        """Constrói mensagem de sucesso de autenticação"""
+        lines = [
+            f"Professor: {teacher_data['name']}",
+            f"Email: {teacher_data['email']}",
+            f"Telefone: {teacher_data['phone']}"
+        ]
+
+        if class_data:
+            lines.extend([
+                "",
+                "Aula Agendada:",
+                f"Dia: {class_data['day_of_week']}",
+                f"Horário: {class_data['start_time']} - {class_data['end_time']}"
+            ])
+
+            if class_data.get('subject'):
+                lines.append(f"Disciplina: {class_data['subject']}")
+
+        return "\n".join(lines)
 
     def show_success_dialog(self, title, details):
         """Mostra um diálogo de sucesso"""

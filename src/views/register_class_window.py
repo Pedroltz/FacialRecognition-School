@@ -57,15 +57,22 @@ class RegisterClassWindow(Gtk.Window):
         grid.attach(teacher_label, 0, 1, 1, 1)
         grid.attach(self.teacher_dropdown, 1, 1, 1, 1)
 
-        # Campo Data
-        date_label = Gtk.Label(label="Data:")
-        date_label.set_halign(Gtk.Align.END)
-        date_label.set_size_request(120, -1)
-        self.date_entry = Gtk.Entry()
-        self.date_entry.set_size_request(300, -1)
-        self.date_entry.set_placeholder_text("DD/MM/YYYY")
-        grid.attach(date_label, 0, 2, 1, 1)
-        grid.attach(self.date_entry, 1, 2, 1, 1)
+        # Dropdown Dia da Semana
+        day_label = Gtk.Label(label="Dia da Semana:")
+        day_label.set_halign(Gtk.Align.END)
+        day_label.set_size_request(120, -1)
+        self.day_dropdown = Gtk.DropDown()
+        self.day_dropdown.set_size_request(300, -1)
+        self.day_model = Gtk.StringList()
+        self.day_dropdown.set_model(self.day_model)
+
+        # Popular dias da semana
+        days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+        for day in days:
+            self.day_model.append(day)
+
+        grid.attach(day_label, 0, 2, 1, 1)
+        grid.attach(self.day_dropdown, 1, 2, 1, 1)
 
         # Campo Horário Início
         start_label = Gtk.Label(label="Hora Início:")
@@ -137,13 +144,13 @@ class RegisterClassWindow(Gtk.Window):
         """Salva a aula"""
         room_idx = self.room_dropdown.get_selected()
         teacher_idx = self.teacher_dropdown.get_selected()
-        date = self.date_entry.get_text().strip()
+        day_idx = self.day_dropdown.get_selected()
         start_time = self.start_entry.get_text().strip()
         end_time = self.end_entry.get_text().strip()
         subject = self.subject_entry.get_text().strip()
 
-        if not all([date, start_time, end_time]):
-            self.status_label.set_text("Preencha os campos obrigatórios (sala, professor, data, horários)!")
+        if not all([start_time, end_time]):
+            self.status_label.set_text("Preencha os campos obrigatórios (sala, professor, dia, horários)!")
             return
 
         room = self.rooms_data.get(room_idx)
@@ -153,8 +160,16 @@ class RegisterClassWindow(Gtk.Window):
             self.status_label.set_text("Selecione uma sala e um professor!")
             return
 
+        # Obter dia da semana selecionado
+        days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+        day_of_week = days[day_idx] if day_idx < len(days) else None
+
+        if not day_of_week:
+            self.status_label.set_text("Selecione um dia da semana!")
+            return
+
         success, message = self.controller.create_class(
-            room['id'], teacher['id'], date, start_time, end_time, subject
+            room['id'], teacher['id'], day_of_week, start_time, end_time, subject
         )
 
         self.status_label.set_text(message)

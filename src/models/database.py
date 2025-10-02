@@ -45,7 +45,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 room_id INTEGER NOT NULL,
                 teacher_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
+                day_of_week TEXT NOT NULL,
                 start_time TEXT NOT NULL,
                 end_time TEXT NOT NULL,
                 subject TEXT,
@@ -222,16 +222,16 @@ class Database:
 
     # ===== MÉTODOS PARA AULAS (CLASSES) =====
 
-    def add_class(self, room_id: int, teacher_id: int, date: str,
+    def add_class(self, room_id: int, teacher_id: int, day_of_week: str,
                   start_time: str, end_time: str, subject: str = "") -> int:
         """Adiciona uma nova aula"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT INTO classes (room_id, teacher_id, date, start_time, end_time, subject)
+            INSERT INTO classes (room_id, teacher_id, day_of_week, start_time, end_time, subject)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (room_id, teacher_id, date, start_time, end_time, subject))
+        ''', (room_id, teacher_id, day_of_week, start_time, end_time, subject))
 
         class_id = cursor.lastrowid
         conn.commit()
@@ -259,7 +259,7 @@ class Database:
                 'id': row[0],
                 'room_id': row[1],
                 'teacher_id': row[2],
-                'date': row[3],
+                'day_of_week': row[3],
                 'start_time': row[4],
                 'end_time': row[5],
                 'subject': row[6],
@@ -281,7 +281,16 @@ class Database:
             JOIN rooms r ON c.room_id = r.id
             JOIN teachers t ON c.teacher_id = t.id
             WHERE c.room_id = ?
-            ORDER BY c.date, c.start_time
+            ORDER BY
+                CASE c.day_of_week
+                    WHEN 'Segunda' THEN 1
+                    WHEN 'Terça' THEN 2
+                    WHEN 'Quarta' THEN 3
+                    WHEN 'Quinta' THEN 4
+                    WHEN 'Sexta' THEN 5
+                    WHEN 'Sábado' THEN 6
+                END,
+                c.start_time
         ''', (room_id,))
         rows = cursor.fetchall()
         conn.close()
@@ -292,7 +301,7 @@ class Database:
                 'id': row[0],
                 'room_id': row[1],
                 'teacher_id': row[2],
-                'date': row[3],
+                'day_of_week': row[3],
                 'start_time': row[4],
                 'end_time': row[5],
                 'subject': row[6],
@@ -314,7 +323,16 @@ class Database:
             FROM classes c
             JOIN rooms r ON c.room_id = r.id
             JOIN teachers t ON c.teacher_id = t.id
-            ORDER BY c.date, c.start_time
+            ORDER BY
+                CASE c.day_of_week
+                    WHEN 'Segunda' THEN 1
+                    WHEN 'Terça' THEN 2
+                    WHEN 'Quarta' THEN 3
+                    WHEN 'Quinta' THEN 4
+                    WHEN 'Sexta' THEN 5
+                    WHEN 'Sábado' THEN 6
+                END,
+                c.start_time
         ''')
         rows = cursor.fetchall()
         conn.close()
@@ -325,7 +343,7 @@ class Database:
                 'id': row[0],
                 'room_id': row[1],
                 'teacher_id': row[2],
-                'date': row[3],
+                'day_of_week': row[3],
                 'start_time': row[4],
                 'end_time': row[5],
                 'subject': row[6],
